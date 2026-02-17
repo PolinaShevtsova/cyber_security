@@ -171,7 +171,7 @@ def inv_poly_Caesar(TXT_IN: str, KEY_IN: str) -> str:
 # print(inv_poly_Caesar(OUT1, K1))  # ОЛОЛО_КРИНЖ
 # print(inv_poly_Caesar(OUT2, K2))  # ОЛОЛО_КРИНЖ
 
-def frm_S_Caesar(BLOCK_IN: str, KEY_IN: str) -> str:
+def frw_S_Caesar(BLOCK_IN: str, KEY_IN: str) -> str:
     if len(BLOCK_IN) != 4 or len(KEY_IN) != 16:
         return "input_error"
     C = [1, -1, 1, 2, -2, 1, 1, 3, -1, 2]
@@ -233,12 +233,12 @@ def inw_S_Caesar(BLOCK_IN: str, KEY_IN: str) -> str:
 #     IN1 = "БЛОК"
 #
 #     # Прямое преобразование
-#     OUT11 = frm_S_Caesar(IN1, K1)
+#     OUT11 = frw_S_Caesar(IN1, K1)
 #     OUT21 = frm_S_Caesar(IN1, K2)
 #
 #     print(f"IN1 = '{IN1}'")
-#     print(f"OUT11 = frm_S_Caesar(IN1, K1) = '{OUT11}' (ожидается 'АЗЩЯ')")
-#     print(f"OUT21 = frm_S_Caesar(IN1, K2) = '{OUT21}' (ожидается 'СЮАЖ')")
+#     print(f"OUT11 = frw_S_Caesar(IN1, K1) = '{OUT11}' (ожидается 'АЗЩЯ')")
+#     print(f"OUT21 = frw_S_Caesar(IN1, K2) = '{OUT21}' (ожидается 'СЮАЖ')")
 #     print()
 #
 #     # Обратное преобразование
@@ -254,8 +254,8 @@ def inw_S_Caesar(BLOCK_IN: str, KEY_IN: str) -> str:
 #     print()
 #
 #     # Проверка на неверные входные данные
-#     test1 = frm_S_Caesar("БЛО", K1)  # Слишком короткий блок
-#     test2 = frm_S_Caesar("БЛОК", "короткий_ключ")  # Слишком короткий ключ
+#     test1 = frw_S_Caesar("БЛО", K1)  # Слишком короткий блок
+#     test2 = frw_S_Caesar("БЛОК", "короткий_ключ")  # Слишком короткий ключ
 #
 #     print(f"Тест с коротким блоком: '{test1}' (ожидается 'input_error')")
 #     print(f"Тест с коротким ключом: '{test2}' (ожидается 'input_error')")
@@ -316,7 +316,7 @@ def inv_merge_block(BLOCK_IN: str, KEY_IN: str) -> str:
 
 def frw_S_CaesarM(BLOCK_IN: str, KEY_IN: str) -> str:
     tmp = frw_merge_block(BLOCK_IN, KEY_IN)
-    tmp = frm_S_Caesar(tmp, KEY_IN)
+    tmp = frw_S_Caesar(tmp, KEY_IN)
     out = frw_merge_block(tmp, KEY_IN)
     return out
 
