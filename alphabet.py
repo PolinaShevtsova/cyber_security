@@ -27,6 +27,11 @@ class Alphabet:
             out +=cls.num2sym(num)
         return out
 
+    @classmethod
+    def reverse_str(cls, in_str: str) -> str:
+        arr = cls.text2array(in_str)
+        return cls.array2text(list(reversed(arr)))
+
 
 class ArithmeticOperations:
     def __init__(self, alphabet_class=Alphabet):

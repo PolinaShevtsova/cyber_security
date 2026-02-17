@@ -380,3 +380,152 @@ def inv_S_CaesarM(BLOCK_IN: str, KEY_IN: str) -> str:
 #     # Обратное преобразование
 #     IN1M = inv_S_CaesarM(OUT1M, K1)
 #     print(f"inv_S_CaesarM('{OUT1M}', K1) = '{IN1M}' (ожидается 'БЛОК')")
+
+def core_Caesar(in_prime, in_aux):
+    if len(in_prime) != 16 or len(in_aux) != 16:
+        return "input_error"
+    C1 = [1, 1, -1]
+    C2 = [4, 3, 2, 1, -1, -2, -3, -4]
+    aux = text2array(in_aux)
+    prime = text2array(in_prime)
+    tmp = 0
+    c1 = prime[2] % 3
+    c2 = prime[10 + c1] % 8
+    c3 = prime[c2 + 3] % 16
+    arr = []
+    for i in range(32):
+        q = (c1 + i) % 3
+        j = (c2 + i) % 8
+        p = (c3 + i) % 16
+        l = i % 16
+        tmp = (tmp + 64 +prime[p] + C1[q] * aux[l] + C2[j]) % 32
+        arr[l] = tmp
+    out = array2text(arr)
+
+    return out
+
+def confuse(in1, in2):
+    arr1 = text2array(in1)
+    arr2 = text2array(in2)
+    for i in range(16):
+        if arr1[i] > arr2[i]:
+            arr1[i] = (arr1[i] + i) % 32
+        else:
+            arr1[i] = (arr2[i] + i) % 32
+    out = array2text(arr1)
+
+    return out
+
+def compress(in_16, out_n):
+    out = "input_error"
+    if out_n != 16:
+        a1 = in_16[0::4]
+        a2 = in_16[4::4]
+        a3 = in_16[8::4]
+        a4 = in_16[12::4]
+        if out_n == 8:
+            a13 = a1 + a3
+            a24 = a2 + a4
+            out = add_txt(a13, a24)
+        if out_n == 4:
+            a13 = sub_txt(a1, a3)
+            a24 = sub_txt(a2, a4)
+            out = add_txt(a13, a24)
+    else:
+        out = in_16
+
+    return out
+
+def c_block(in_arr, out_size):
+    out = "input_error"
+    r = len(in_arr)
+    C = ["________________", "ПРОЖЕКТОР_ЧЕПУХИ",
+         "КОЛЫХАТЬ_ПАРОДИЮ", "КАРМАННЫЙ_АТАМАН"]
+    flag = 1
+    for i in range(r):
+        if len(in_arr[i]) != 16:
+            C[i] = add_txt(C[i], in_arr[i])
+        else:
+            flag = 0
+    if flag == 1:
+        C[1] = add_txt(C[1], in_arr[0])
+        tmp1 = core_Caesar(C[0], C[2])
+        tmp2 = core_Caesar(C[1], C[3])
+        tmp3 = confuse(tmp1, tmp2)
+        out = core_Caesar(out, out_size)
+
+    return out
+
+def reverse_str(in_str):
+    in_str = text2array(in_str)
+    tmp = list(reversed(in_str))
+    out = array2text(tmp)
+    return out
+
+def blocks_mix(in1, in2):
+    in1 = reverse_str(in1)
+    out = []
+    out[0] = add_txt(in1, in2)
+    out[1] = sub_txt(in1, in2)
+
+    return out
+
+def block_mask(in_str, const):
+    arr = text2array(in_str)
+    con = text2array(const)
+    out = []
+    for i in range(16):
+        if arr[i] > (con[i] + i):
+            out[i] = (64 - (con[i] - i)) % 32
+        else:
+            out[i] = (arr[i] + i) % 32
+    out = array2text(out)
+
+    return out
+
+def pad_MD(in_str):
+    out = in_str
+    l = len(in_str)
+    rem = 64 - (l % 64)
+    if rem != 64:
+        for i in range(rem):
+            out += "_"
+    return out
+
+def macro_compression(in_str, state):
+    a = add_txt(in_str[0::16], state[0::16])
+    b = add_txt(in_str[16::16], state[16::16])
+    c = add_txt(in_str[32::16], state[32::16])
+    d = add_txt(in_str[48::16], state[48::16])
+    e = state[64::16]
+    con = "ААААЯЯЯЯЯААЯЯААЯЯ"
+    for i in range(12):
+        e = add_txt(e, c_block([a, b, c, d], "16"))
+        tmp = blocks_mix(c, d)
+        con = add_txt(con, "ААААЯЯЯЯААЯЯААЯЯ")
+        c = tmp[0]
+        d = tmp[1]
+        b = block_mask(b, con)
+        a, b, c, d, e = b, c, d, e, a
+    out = [a, b, c, d, e]
+
+    return out
+
+def MerDam_hash(msg):
+    data = pad_MD(msg)
+    temp = ""
+    n = len(data) // 64
+    a, b, c, d, e = ("________________", "________________",
+                     "________________", "________________",
+                     "________________")
+    for i in range(n):
+        tmp = data[i*64::64]
+        state = macro_compression(tmp, (a + b + c + d + e))
+        a, b, c, d, e = state
+    p1 = c_block([a, e], "16")
+    p2 = c_block([b, e], "16")
+    p3 = c_block([c, e], "16")
+    p4 = c_block([d, e], "16")
+    out = p1 + p2 + p3 + p4
+
+    return out
