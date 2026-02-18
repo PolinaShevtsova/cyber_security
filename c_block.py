@@ -1,5 +1,6 @@
 from alphabet import Alphabet, ArithmeticOperations
 from core_function import CoreFunction
+from main1 import c_block
 
 
 class CBlock:
@@ -40,7 +41,6 @@ class BlockMixer:
     def __init__(self):
         self.arith = ArithmeticOperations(Alphabet)
         self.core = CoreFunction()
-        self.c_block = CBlock()
 
     def macro_compression(self, in_str: str, state: str) -> list:
         a = self.arith.add_txt(in_str[0:16], state[0:16])
@@ -52,7 +52,8 @@ class BlockMixer:
         con = "ААААЯЯЯЯААЯЯААЯЯ"
 
         for i in range(12):
-            e = self.arith.add_txt(e, self.c_block.process([a, b, c, d], "16"))
+            c_block = CBlock()
+            e = self.arith.add_txt(e, c_block.process([a, b, c, d], "16"))
             tmp = self.core.blocks_mix(c, d)
             con = self.arith.add_txt(con, "ААААЯЯЯЯААЯЯААЯЯ")
             c = tmp[0]

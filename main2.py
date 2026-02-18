@@ -101,9 +101,44 @@ if __name__ == "__main__":
     ins = "__________" * 8
     func = MerkleDamgardHash()
     macro = BlockMixer()
-    in1 = func.pad_md(s1 +s2)
+    in1 = func.pad_md(s1 + s2)
     print(in1)
     print(len(in1))
     print(len(ins))
     print(macro.macro_compression(in1, ins))
 
+
+    print("===" * 15)
+
+    s1 = "КЬЕРКЕГОР_ПРОПАЛ"
+    s2 = "ХОРОШО_БЫТЬ_ВАМИ"
+    func = MerkleDamgardHash()
+    in1 = func.pad_md(s1 + s2)
+    print(in1)
+    macro = BlockMixer()
+    print(func.hash(in1))
+
+    print("===" * 15)
+
+    in2 = "_" * 64
+    print(in2)
+    print(func.hash(in2))
+
+    print("===" * 15)
+
+    in3 = "______________________А_________________________________________"
+    in4 = "________А_______________________________________________________"
+    print(in3)
+    print(in4)
+    print(func.hash(in3))
+    print(func.hash(in4))
+
+    print("===" * 15)
+    print(sub_txt(func.hash(in2), func.hash(in3)))
+    print(sub_txt(func.hash(in2), func.hash(in4)))
+    print("===" * 15)
+
+    in5 = "ПЕТЯ_ПИЛ_ПИВО_В_КАЛЬЯННОЙ_И_КУРИЛ_БАМБУК_ЧЕРЕЗ_АНАНАС_ТЧК_НАСТЯ_ПИЛА_ВОДУ_И_НЕ_ПОШЛА_В_КАЛЬЯННУЮ_ЗПТ_ЧТОБЫ_ВЫСПАТЬСЯ"
+    in6 = "ЗОЛОТЫЕ_ВРЕМЕНА_ПРОШЛИ_ТЧК_НАСТАЛА_ПОРА_ГРУЗИТЬ_АПЕЛЬСИНЫ_БОЧКАМИ_И_НЕ_ОГЛЯДЫВАТЬСЯ_НАЗАД_ТЧК_КОГДАТО_СНОВА_МЫ_БУДЕМ_ТАМ_ГДЕ_НАС_ЖДУТ_ТЧК"
+    print(func.hash(in5))
+    print(func.hash(in6))
