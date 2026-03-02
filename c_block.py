@@ -25,12 +25,11 @@ class CBlock:
                 flag = 0
 
         if flag == 1:
-            self.C[1] = self.arith.add_txt(self.C[1], in_arr[0])
+            self.C = self.core.mixinputs(self.C)
             tmp1 = self.core.core_caesar(self.C[0], self.C[2])
             tmp2 = self.core.core_caesar(self.C[3], self.C[1])
             tmp3 = self.core.confuse(tmp1, tmp2)
             out = self.core.core_caesar(tmp3, tmp1)
-            h1 = int(out_size)
             out = self.core.compress(out, int(out_size))
 
         return out

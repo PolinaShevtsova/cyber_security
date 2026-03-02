@@ -1,3 +1,6 @@
+from idlelib.debugobj_r import remote_object_tree_item
+from zipfile import stringEndArchive
+
 ALPHABET = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ_"
 
 def sym2num(sym_in: str) -> int:
@@ -269,7 +272,7 @@ def frw_merge_block(BLOCK_IN: str, KEY_IN: str) -> str:
 
     for i in range(16):
         term = (-1) ** i * array[i]
-        sum_val = (24 + sum_val + term) % 24
+        sum_val = (48 + sum_val + term) % 24
 
     for k in range(3):
         t = sum_val % (4 - k)
@@ -384,8 +387,8 @@ def inv_S_CaesarM(BLOCK_IN: str, KEY_IN: str) -> str:
 def core_Caesar(in_prime, in_aux):
     if len(in_prime) != 16 or len(in_aux) != 16:
         return "input_error"
-    C1 = [1, 1, -1]
-    C2 = [4, 3, 2, 1, -1, -2, -3, -4]
+    C1 = [1, -1, 1, -1, 1, -1, 1]
+    C2 = [1, -1, 1, -1, 1]
     aux = text2array(in_aux)
     prime = text2array(in_prime)
     tmp = 0
@@ -529,3 +532,167 @@ def MerDam_hash(msg):
     out = p1 + p2 + p3 + p4
 
     return out
+
+def block2num(block_in):
+    if len(block_in) != 4:
+        return "input_error"
+    else:
+        pos = 1
+        tmp = text2array(block_in)
+        out = 0
+        for i in [3, 2, 1, 0]:
+            out = pos * tmp[i] + out
+            pos = 32 * pos
+    return out
+
+def div(num_in, den_in):
+    return int(num_in/den_in)
+
+def num2block(num_in):
+    rem = num_in
+    tmp = [0] * 4
+    for i in range(4):
+        tmp[3 - i] = rem % 32
+        rem = div(rem, 32)
+    return array2text(tmp)
+
+def dec2bin(num_in):
+    rem = num_in
+    out = [0] * 20
+    for i in range(20):
+        out[19 - i] = rem % 2
+        rem = div(rem, 2)
+
+    return out
+
+def bin2dec(bin_in):
+    out = 0
+    for i in range(20):
+        out = 2 * out + bin_in[i]
+    return out
+
+def initialize_pring(seed_in):
+    const = ["ПЕРВОЕ_АКТЕРСТВО", "ВТОРОЙ_ДАЛЬТОНИК",
+             "ТРЕТЬЯ_САДОВНИЦА", "ЧЕТВЕРТЫЙ_ГОБЛИН"]
+    value = [] * 4
+    out = [] * 4
+    for i in range(4):
+        value[i] = c_block([const[i], seed_in], 16)
+    secret = c_block(value, 16)
+    for i in range(4):
+        tmp = value[i]
+        TMP = ""
+        for j in range(4):
+            tmp = add_txt(tmp, const[j])
+            TMP = TMP + c_block([tmp, secret], 16)
+            tmp = add_txt(tmp, TMP)
+        out[i] = TMP[4:4 + 12]
+    return out
+
+def block2bin(block_in):
+    tmp = block2num(block_in)
+    return dec2bin(tmp)
+def bin2block(bin_in):
+    tmp = bin2dec(bin_in)
+    return num2block(tmp)
+
+def push_reg(bin_in, bool_in):
+    n = len(bin_in) - 2
+    out = [0] * n
+    for i in range(n, -1, -1):
+        out[i] = bin_in[i + 1]
+    out[len(bin_in) - 1] = bool_in
+    return out
+
+def taps2bin(taps_in):
+    taps = reverse_str(sorted(taps_in))
+    last = taps[0]
+    y = 20 - last
+    out = [] * y
+    if y > 0:
+        for i in range(y):
+            out[i] = 0
+    for i in range(last):
+        j = 0
+        if last - i == taps[j]:
+            out[y + i] = 1
+            j += 1
+        else:
+             out[y + i] = 0
+        if j > len(taps) - 1:
+            break
+    q = len(out)
+    if q < last:
+        for i in range(q, 20):
+            out[i] = 0
+    return out
+
+def LFSR_push(state_in, taps_in):
+    n = min(len(state_in), len(taps_in))
+    tmp = 0
+    for i in range(n):
+        tmp = tmp + state_in[i] * taps_in[i]
+    return push_reg(state_in, tmp % 2)
+
+def LFSR_next(state_in, taps_in):
+    state = state_in
+    stream = [] * 20
+    for i in range(20):
+        state = LFSR_push(state, taps_in)
+        stream[i] = state[19]
+    out = [stream, state]
+    return out
+
+def AS_LFSR_push(state_in, taps_in):
+    lfsr0 = LFSR_push(state_in[0], taps_in[0])
+    lfsr1 = LFSR_push(state_in[1], taps_in[1])
+    lfsr2 = LFSR_push(state_in[2], taps_in[2])
+    if lfsr0[19] == 0:
+        stream = lfsr1[19]
+    else:
+        stream = lfsr2[19]
+    state_out = [lfsr0, lfsr1, lfsr2]
+    return [stream, state_out]
+
+def seed2bins(array_in):
+    out = [] * 3
+    for i in range(3):
+        out[i] = block2bin(array_in[i])
+    return out
+
+def AS_LFSR_next(state_in, taps_in):
+    state_set = state_in
+    stream = [] * 20
+    for i in range(20):
+        tmp = AS_LFSR_push(state_set, taps_in)
+        state_set = tmp[1]
+        stream[i] = tmp[0]
+    return [stream, state_set]
+
+def C_AS_LFSR_next(init_flag, state_in, seed_in, set_in):
+    out = "something_wrong"
+    stream = ""
+    check = 0
+    state = [] * 4
+    if init_flag == "up":
+        INIT = initialize_pring(seed_in)
+        for i in range(4):
+            state[i] = seed2bins([INIT[i][0:0+4], INIT[i][4:4+4], INIT[i][8:8+4]])
+            check = 1
+    elif init_flag == "down":
+        state = state_in
+        check = 1
+    tmp = ""
+    if check:
+        for j in range(4):
+            for k in range(4):
+                T = AS_LFSR_next(state[k], set_in[j])
+                state[k] = T[1]
+                if k == 0:
+                    tmp = T[0]
+                else:
+                    for i in range(20):
+                        tmp[i] = (T[0][i] + tmp[i]) % 2
+            stream = stream + bin2block(tmp)
+        out = [stream, state]
+        return out

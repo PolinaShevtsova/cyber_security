@@ -62,7 +62,7 @@ class MergeBlockCipher(BlockCipher):
 
         for i in range(16):
             term = (-1) ** i * array[i]
-            sum_val = (24 + sum_val + term) % 24
+            sum_val = (48 + sum_val + term) % 24
 
         for k in range(3):
             t = sum_val % (4 - k)

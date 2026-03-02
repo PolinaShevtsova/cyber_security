@@ -4,8 +4,8 @@ class CoreFunction:
 
     def __init__(self):
         self.arith = ArithmeticOperations(Alphabet)
-        self.C1 = [1, 1, -1]
-        self.C2 = [4, 3, 2, 1, -1, -2, -3, -4]
+        self.C1 = [1, -1, 1, -1, 1, -1, 1]
+        self.C2 = [1, -1, 1, -1, 1]
 
     def core_caesar(self, in_prime: str, in_aux: str) -> str:
         if len(in_prime) != 16 or len(in_aux) != 16:
@@ -14,17 +14,20 @@ class CoreFunction:
         aux = Alphabet.text2array(in_aux)
         prime = Alphabet.text2array(in_prime)
         tmp = 0
-        c1 = prime[2] % 3
-        c2 = prime[10 + c1] % 8
-        c3 = prime[c2 + 3] % 16
+        t1 = 0
+        for i in range(16):
+            t1 = t1 + aux[i]
+        c1 = t1 % 7
+        c2 = prime[2 * c1 + 1] % 5
+        c3 = (prime[2 * c2] + prime[2 * c1]) % 16
         arr = [0] * 16
 
-        for i in range(32):
-            q = (c1 + i) % 3
-            j = (c2 + i) % 8
+        for i in range(16):
+            q = (c1 + i) % 7
+            j = (c2 + i) % 5
             p = (c3 + i) % 16
             l_val = i % 16
-            tmp = (tmp + 64 + prime[p] + self.C1[q] * aux[l_val] + self.C2[j]) % 32
+            tmp = (tmp + 64 + prime[p] + self.C1[q] * aux[l_val] * self.C2[j]) % 32
             arr[l_val] = tmp
 
         return Alphabet.array2text(arr)
@@ -39,7 +42,8 @@ class CoreFunction:
             else:
                 arr1[i] = (arr2[i] + i) % 32
 
-        return Alphabet.array2text(arr1)
+        tmp = Alphabet.array2text(arr1)
+        return self.arith.add_txt(self.arith.add_txt(tmp, in1), in2)
 
     def compress(self, in_16: str, out_n: int) -> str:
         out = "input_error"
@@ -83,3 +87,11 @@ class CoreFunction:
             self.arith.add_txt(in1, in2),
             self.arith.sub_txt(in1, in2)
         ]
+
+    def mixinputs(self, in_val: list) -> list:
+        out1 = self.arith.add_txt(in_val[0], in_val[1])
+        out2 = self.arith.sub_txt(in_val[0], in_val[1])
+        out3 = self.arith.add_txt(out2, self.arith.add_txt(in_val[2], in_val[3]))
+        out4 = self.arith.add_txt(out1, self.arith.sub_txt(in_val[2], in_val[3]))
+        out = [out1, out2, out3, out4]
+        return out
