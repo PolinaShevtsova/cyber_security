@@ -107,7 +107,7 @@ class AS_LFSR:
         if check:
             for j in range(4):
                 for k in range(4):
-                    T = self.AS_LFSR_next(state[k], set_in[j])
+                    T = self.AS_LFSR_next(state[k], set_in)
                     state[k] = T[1]
 
                     if k == 0:
@@ -121,5 +121,41 @@ class AS_LFSR:
             out = [stream, state]
 
         return out
+
+    def init_generator(self, seed_in):
+
+        INIT = self.initialize_pring(seed_in)
+
+        state = [None] * 4
+
+        for i in range(4):
+            state[i] = self.seed2bins([
+                INIT[i][0:4],
+                INIT[i][4:8],
+                INIT[i][8:12]
+            ])
+
+        return state
+
+    def generate(self, state, set_in):
+
+        stream = ""
+
+        for j in range(4):
+
+            for k in range(4):
+
+                T = self.AS_LFSR_next(state[k], set_in)
+                state[k] = T[1]
+
+                if k == 0:
+                    tmp = T[0]
+                else:
+                    for i in range(20):
+                        tmp[i] = (T[0][i] + tmp[i]) % 2
+
+            stream += self.converter.bin2block(tmp)
+
+        return stream, state
 
 

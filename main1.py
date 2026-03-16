@@ -696,3 +696,140 @@ def C_AS_LFSR_next(init_flag, state_in, seed_in, set_in):
             stream = stream + bin2block(tmp)
         out = [stream, state]
         return out
+
+
+def subblocks_xor(blocka_in, blockb_in):
+    decA = block2num(blocka_in)
+    decB = block2num(blockb_in)
+    binA = dec2bin(decA)
+    binB = dec2bin(decB)
+    binO = []
+    for i in range(len(binA)):
+        binO.append((binA[i] + binB[i]) % 2)
+    decO = bin2dec(binO)
+    return num2block(decO)
+
+def block_xor(blocka_in, blockb_in):
+    nb = blocka_in // 4
+    out = ""
+    for i in range(nb):
+        tmpA = blocka_in[i * 4 : (i + 1) * 4]
+        tmpB = blockb_in[i * 4 : (i + 1) * 4]
+        out += subblocks_xor(tmpA, tmpB)
+    return out
+
+def make_lfsr_set(void):
+    out = []
+    out0 = taps2bin([20, 17])
+    out.append(out0)
+    out1 = taps2bin([20, 19, 16, 14])
+    out.append(out1)
+    out2 = taps2bin([20, 9, 5, 3])
+    out.append(out2)
+    return out
+
+def produce_round_keys(key_in, num_in):
+    set1 = [0] * 3
+    set2 = [0] * 3
+    set3 = [0] * 3
+    set4 = [0] * 3
+    set1[0] = taps2bin([19, 18])
+    set1[1] = taps2bin([18, 7])
+    set1[2] = taps2bin([17, 3])
+
+    set2[0] = taps2bin([19, 18])
+    set2[1] = taps2bin([18, 7])
+    set2[2] = taps2bin([16, 14, 13, 11])
+
+    set3[0] = taps2bin([19, 18])
+    set3[1] = taps2bin([18, 7])
+    set3[2] = taps2bin([15, 13, 12, 10])
+
+    set4[0] = taps2bin([19, 18])
+    set4[1] = taps2bin([18, 7])
+    set4[2] = taps2bin([14, 5, 3, 1])
+    SET = [set1, set2, set3, set4]
+    out = []
+    out0, intern = C_AS_LFSR_next("up", -1, key_in, SET)
+    out.append(out0)
+    if num_in > 1:
+        for i in range(1, num_in):
+            outi, intern = C_AS_LFSR_next("down", intern, -1, SET)
+            out.append(outi)
+    return out
+import math
+def frw_P_skitala(block_in):
+    T = text2array(block_in)
+    q = math.floor(len(block_in) / 2)
+    f = len(block_in) % 2
+    tmpA = block_in[0 : q + f]
+    tmpB = block_in[q + f : q + f + q]
+    out = ""
+    for i in range(q + 1):
+        if i % 2 == 0:
+            out += tmpA[i : i + 1]
+            out += tmpB[i : i + 1]
+        else:
+            out += tmpB[i : i + 1]
+            out += tmpA[i : i + 1]
+    if f == 1:
+        out += tmpA[q + f : q + f + 1]
+    return out
+
+def inv_P_skitala(block_in):
+    T = text2array(block_in)
+    q = math.floor(len(block_in) / 2)
+    f = len(block_in) % 2
+    tmpA = ""
+    tmpB = ""
+    out = ""
+    for i in range(q):
+        if i % 2 == 0:
+            tmpA += block_in[2 * i : 2 * i + 1]
+            tmpB += block_in[2 * i + 1 : 2 * i + 2]
+        else:
+            tmpB += block_in[2 * i: 2 * i + 1]
+            tmpA += block_in[2 * i + 1: 2 * i + 2]
+    if f == 1:
+        tmpA += block_in[2 * q : 1]
+    out = tmpA + tmpB
+    return out
+
+def frw_routine_Feistel(block_in, key_in):
+    left = block_in[0 : 4]
+    right = block_in[4 : 8]
+    tmp = frw_S_CaesarM(right, key_in)
+    left = add_txt(tmp, left)
+    return right + left
+
+def inv_routine_Feistel(block_in, key_in):
+    l = len(block_in)
+    left = block_in[0 : l / 2]
+    right = block_in[l / 2 : (l / 2) + (l / 2)]
+    tmp = frw_S_CaesarM(left, key_in)
+    right = add_txt(right, tmp)
+    return right + left
+
+def frw_inner_Feistel(block_in, key_in, r_in):
+    tmp = frw_P_skitala(block_in)
+    for i in range(r_in):
+        tmp = frw_routine_Feistel(tmp, key_in)
+    return frw_P_skitala(tmp)
+
+def inv_inner_Feistel(block_in, key_in, r_in):
+    tmp = inv_P_skitala(block_in)
+    for i in range(r_in):
+        tmp = inv_routine_Feistel(tmp, key_in)
+    return inv_P_skitala(tmp)
+
+def round_Feistel(block_in, key_in):
+    left = block_in[0 : 8]
+    right = block_in[8 : 8 + 8]
+    tmp = frw_inner_Feistel(right, key_in, 3)
+    left = block_xor(tmp, left)
+    return right + left
+
+def swap_blocks(block_in):
+    left = block_in[0 : 8]
+    right = block_in[8 : 8 + 8]
+    return right + left
