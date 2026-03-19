@@ -1,5 +1,4 @@
 from idlelib.debugobj_r import remote_object_tree_item
-from zipfile import stringEndArchive
 
 ALPHABET = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ_"
 
@@ -833,3 +832,21 @@ def swap_blocks(block_in):
     left = block_in[0 : 8]
     right = block_in[8 : 8 + 8]
     return right + left
+
+def frw_feistel(block_in, keys_in, r_in):
+    key_set = keys_in
+    block = block_xor(block_in, key_set[0])
+    for i in range(1, r_in + 1):
+        block = round_Feistel(block, key_set[1])
+    out = block_xor(block, key_set[r_in + 1])
+    return out
+
+def inv_feistel(block_in, keys_in, r_in):
+    key_set = keys_in
+    block = block_xor(block_in, key_set[r_in + 1])
+    block = swap_blocks(block)
+    for i in range(r_in, 0, - 1):
+        block = round_Feistel(block, key_set[1])
+    block = swap_blocks(block)
+    out = block_xor(block, key_set[0])
+    return out

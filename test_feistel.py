@@ -28,7 +28,7 @@ print(lfsr_set)
 key = "ПОЛИМАТ_ТЕХНОБОГ"
 print(generator.produce_round_keys(key, 6, lfsr_set))
 
-print("=====" * 5)
+print("*****=====" * 5)
 skitala = SkitalaPermutation()
 print(skitala.frw_P_skitala("ДЖИГУРДА"))
 print(skitala.frw_P_skitala("ДЖИГУРДАЯ"))
@@ -98,3 +98,13 @@ print(lfsr_set)
 
 key = "МТВ_ВСЕ_ЕЩЕ_ТЛЕН"
 print(generator.produce_round_keys(key, 8, lfsr_set))
+
+print("=====" * 5)
+keys1 = generator.produce_round_keys(key, 6, lfsr_set)
+out1 = feistal.frw_feistel(in1, keys1, 1)
+lout1 = feistal.inv_feistel(out1, keys1, 1)
+print(out1, lout1)
+out2 = feistal.frw_feistel(in2, keys1, 4)
+lout2 = feistal.inv_feistel(out2, keys1, 4)
+print(out2, lout2)
+print(keys1)

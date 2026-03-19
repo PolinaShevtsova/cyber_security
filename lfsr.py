@@ -107,7 +107,7 @@ class AS_LFSR:
         if check:
             for j in range(4):
                 for k in range(4):
-                    T = self.AS_LFSR_next(state[k], set_in)
+                    T = self.AS_LFSR_next(state[k], set_in[j])
                     state[k] = T[1]
 
                     if k == 0:

@@ -47,14 +47,36 @@ class KeyGenerator:
         self.generator = AS_LFSR()
 
     def make_lfsr_set(self):
+        #
+        # out = []
+        #
+        # out.append(self.converter.taps2bin([20, 17]))
+        # out.append(self.converter.taps2bin([20, 19, 16, 14]))
+        # out.append(self.converter.taps2bin([20, 9, 5, 3]))
 
-        out = []
+        block_converter = BlockConverter()
+        set1 = [0] * 3
+        set2 = [0] * 3
+        set3 = [0] * 3
+        set4 = [0] * 3
+        set1[0] = block_converter.taps2bin([19, 18])
+        set1[1] = block_converter.taps2bin([18, 7])
+        set1[2] = block_converter.taps2bin([17, 3])
 
-        out.append(self.converter.taps2bin([20, 17]))
-        out.append(self.converter.taps2bin([20, 19, 16, 14]))
-        out.append(self.converter.taps2bin([20, 9, 5, 3]))
+        set2[0] = block_converter.taps2bin([19, 18])
+        set2[1] = block_converter.taps2bin([18, 7])
+        set2[2] = block_converter.taps2bin([16, 14, 13, 11])
 
-        return out
+        set3[0] = block_converter.taps2bin([19, 18])
+        set3[1] = block_converter.taps2bin([18, 7])
+        set3[2] = block_converter.taps2bin([15, 13, 12, 10])
+
+        set4[0] = block_converter.taps2bin([19, 18])
+        set4[1] = block_converter.taps2bin([18, 7])
+        set4[2] = block_converter.taps2bin([14, 5, 3, 1])
+        SET = [set1, set2, set3, set4]
+
+        return SET
 
     def produce_round_keys(self, key_in, num_in, SET):
         out = []
@@ -187,3 +209,21 @@ class FeistelCipher:
         right = block_in[8:16]
 
         return right + left
+
+    def frw_feistel(self, block_in, keys_in, r_in):
+        key_set = keys_in
+        block = self.blocks.block_xor(block_in, key_set[0])
+        for i in range(1, r_in + 1):
+            block = self.round_Feistel(block, key_set[1])
+        out = self.blocks.block_xor(block, key_set[r_in + 1])
+        return out
+
+    def inv_feistel(self, block_in, keys_in, r_in):
+        key_set = keys_in
+        block = self.blocks.block_xor(block_in, key_set[r_in + 1])
+        block = self.swap_blocks(block)
+        for i in range(r_in, 0, - 1):
+            block = self.round_Feistel(block, key_set[1])
+        block = self.swap_blocks(block)
+        out = self.blocks.block_xor(block, key_set[0])
+        return out
