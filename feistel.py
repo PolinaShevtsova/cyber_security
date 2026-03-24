@@ -40,6 +40,40 @@ class BlockOperations:
 
         return out
 
+    def bit_swap(self, block_in):
+
+        b = self.converter.block2bin(block_in[0 : 4])
+        for i in range(10):
+            t = b[2 * i]
+            b[2 * i] = b[2 * i + 1]
+            b[2 * i + 1] = t
+
+        block_out = self.converter.bin2block(b) + block_in[4 : 8]
+
+        return block_out
+
+    def bit_shift(self, block_in):
+
+        b = self.converter.block2bin(block_in[0 : 4])
+        t = b[19]
+        for i in range(19, 0, -1):
+            b[i] = b[i - 1]
+        b[0] = t
+        block_out = self.converter.bin2block(b) + block_in[4 : 8]
+
+        return block_out
+
+    def bit_shift_r(self, block_in):
+
+        b = self.converter.block2bin(block_in[0 : 4])
+        t = b[0]
+        for i in range(19):
+            b[i] = b[i + 1]
+        b[19] = t
+        block_out = self.converter.bin2block(b) + block_in[4 : 8]
+
+        return block_out
+
 class KeyGenerator:
 
     def __init__(self):
@@ -176,28 +210,30 @@ class FeistelCipher:
 
     def frw_inner_Feistel(self, block_in, key_in, r_in):
 
-        tmp = self.perm.frw_P_skitala(block_in)
+        tmp = self.blocks.bit_swap(self.perm.frw_P_skitala(block_in))
 
         for i in range(r_in):
             tmp = self.frw_routine_Feistel(tmp, key_in)
+            tmp = self.blocks.bit_shift(tmp)
 
-        return self.perm.frw_P_skitala(tmp)
+        return self.perm.frw_P_skitala(self.blocks.bit_swap(tmp))
 
     def inv_inner_Feistel(self, block_in, key_in, r_in):
 
-        tmp = self.perm.inv_P_skitala(block_in)
+        tmp = self.blocks.bit_swap(self.perm.inv_P_skitala(block_in))
 
         for i in range(r_in):
+            tmp = self.blocks.bit_shift_r(tmp)
             tmp = self.inv_routine_Feistel(tmp, key_in)
 
-        return self.perm.inv_P_skitala(tmp)
+        return self.perm.inv_P_skitala(self.blocks.bit_swap(tmp))
 
     def round_Feistel(self, block_in, key_in):
 
         left = block_in[0:8]
         right = block_in[8:16]
 
-        tmp = self.frw_inner_Feistel(right, key_in, 3)
+        tmp = self.frw_inner_Feistel(right, key_in, 2)
 
         left = self.blocks.block_xor(tmp, left)
 
@@ -214,7 +250,7 @@ class FeistelCipher:
         key_set = keys_in
         block = self.blocks.block_xor(block_in, key_set[0])
         for i in range(1, r_in + 1):
-            block = self.round_Feistel(block, key_set[1])
+            block = self.round_Feistel(block, key_set[i])
         out = self.blocks.block_xor(block, key_set[r_in + 1])
         return out
 
@@ -223,7 +259,7 @@ class FeistelCipher:
         block = self.blocks.block_xor(block_in, key_set[r_in + 1])
         block = self.swap_blocks(block)
         for i in range(r_in, 0, - 1):
-            block = self.round_Feistel(block, key_set[1])
+            block = self.round_Feistel(block, key_set[i])
         block = self.swap_blocks(block)
         out = self.blocks.block_xor(block, key_set[0])
         return out
