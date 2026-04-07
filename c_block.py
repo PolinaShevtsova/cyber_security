@@ -1,7 +1,5 @@
 from alphabet import Alphabet, ArithmeticOperations
 from core_function import CoreFunction
-from main1 import c_block
-
 
 class CBlock:
 

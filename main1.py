@@ -1,5 +1,7 @@
 from idlelib.debugobj_r import remote_object_tree_item
 
+from hash_function import MerkleDamgardHash
+
 ALPHABET = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ_"
 
 def sym2num(sym_in: str) -> int:
@@ -849,4 +851,400 @@ def inv_feistel(block_in, keys_in, r_in):
         block = round_Feistel(block, key_set[1])
     block = swap_blocks(block)
     out = block_xor(block, key_set[0])
+    return out
+
+def kdf(mat_in, salt_in, con_in, size_in, iter_in):
+    tmp = mat_in + salt_in
+    func = MerkleDamgardHash()
+    for i in range(iter_in+1):
+        ext = func.hash(tmp)
+        tmp = ext + tmp
+    prk = tmp
+    out = []
+    for i in range(len(size_in)):
+        q = (size_in[i] - (size_in[i]%64)) / 64
+        rem = i
+        res = ""
+        while rem > 0:
+            h = rem%32
+            res = res + num2sym(h)
+            rem = (rem - h) / 32
+        if q > 0:
+            hash = prk
+            for i in range(q+1):
+                tmp = hash + con_in[i] + prk
+                hash = func.hash(tmp)
+                res = hash + res
+        else:
+            tmp = prk + con_in[i] + prk
+            res = func.hash(tmp)
+        out.append(res[0 : size_in[i]])
+
+    return out
+
+def isSym(s_in: str) -> int:
+    return 1 if s_in in "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ_" else -1
+
+
+def sym2bin(s_in: str) -> int:
+    return ord(s_in) - 48
+
+def msg2bin(MSG_IN: str) -> list:
+    M = len(MSG_IN)
+    i = 0
+    f = 0
+    tmp = []
+
+    while i < M and isSym(MSG_IN[i]) == 1:
+        p = MSG_IN[i]
+        c = sym2num(p)
+
+        for j in range(5):
+            idx = i * 5 + 4 - j
+            while len(tmp) <= idx:
+                tmp.append(0)
+            tmp[idx] = c % 2
+            c = c // 2
+
+        if i == M - 1:
+            f = 1
+            break
+        i += 1
+
+    if f == 0:
+        for k in range(i, M):
+            p = MSG_IN[k]
+            bit_val = sym2bin(p) if p in '01' else sym2num(p) % 2
+            idx = k * 4 + i + k
+            while len(tmp) <= idx:
+                tmp.append(0)
+            tmp[idx] = bit_val
+
+    return tmp
+
+
+def num2str(num_in: int) -> str:
+    alphabet = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ_"
+
+    if num_in == 0:
+        return "_"
+    return alphabet[num_in - 1]
+
+def bin2msg(bin_in):
+    B = len(bin_in)
+    b = B // 5
+    q = B % 5
+    out = ""
+    for i in range(b):
+        t = 0
+        for j in range(5):
+            t = 2 * t + bin_in[i * 5 + j]
+        out = out + num2sym(t)
+    if q > 0:
+        for k in range(q + 1):
+            out = out + num2str(bin_in)
+    return out
+
+def check_padding(binmsg_in):
+    bins = binmsg_in
+    M = len(bins)
+    blocks = M // 80
+    remainder = M % 80
+    padlength = 0
+    numblocks = 0
+    f = 1
+    if remainder == 0:
+        tb = bins[M-20:M][0:1]
+        ender = tb[7:20][0:1]
+        if ender == [0, 0, 1]:
+            NB = tb[7:17][0:1]
+            PL = tb[0:7][0:1]
+            padlength = 0
+            for i in range(7):
+                padlength = 2*padlength + PL[i]
+            numblocks = 0
+            for i in range(10):
+                numblocks = 2*numblocks + NB[i]
+            if (numblocks == blocks) and (padlength >= 23) and (padlength < 103):
+                tb = bins[M-padlength:M-20][0:1]
+                starter = tb[0]
+                if (starter == 1):
+                    f = 1
+                    for j in range(padlength-20):
+                        tmp = tb[j]
+                        if tmp == 1:
+                            f = 0
+                        break
+            else:
+                f = 0
+        else:
+            f = 0
+    else:
+        f = 0
+
+    return [f, [numblocks, padlength]]
+
+def produce_padding(rem_in, blocks_in):
+    if rem_in == 0:
+        b = blocks_in + 1
+        r = 80
+    elif rem_in <= 57:
+        r = 80 - rem_in
+        b = blocks_in + 1
+    else:
+        b = blocks_in + 2
+        r = 160 - rem_in
+    pad = []
+    pad.append(1)
+    for i in range(r - 20):
+        pad.append(0)
+    rt = r
+    for i in range(6, -1, -1):
+        pad[r - 20 + i] = rt % 2
+        rt = rt // 2
+    for i in range(9, -1, -1):
+        pad[r - 13 + i] = b % 2
+        b = b // 2
+    pad[r - 3] = 0
+    pad[r - 2] = 0
+    pad[r - 1] = 1
+    return pad
+
+def pad_message(msg_in):
+    pad = ""
+    bins = msg2bin(msg_in)
+    M = len(bins)
+    blocks = M // 80
+    remainder = M % 80
+    if remainder == 0:
+        f = check_padding(bins)[0]
+    else:
+        f = 1
+    if f == 1:
+        pad = produce_padding(remainder, blocks)
+        for j in range(len(pad)):
+            bins[M + j] =  pad[j]
+    return bin2msg(bins)
+
+def unpad_message(msg_in):
+    bins = msg2bin(msg_in)
+    M = len(bins)
+    T = check_padding(bins)
+    if T[0] == 1:
+        pl = T[1][1]
+        tmp = bins[0:M-pl][0:1]
+        out = bin2msg(tmp)
+    else:
+        out = msg_in
+    return out
+
+def prepare_packet(data_in, iv_in, msg_in):
+    data = data_in
+    iv = add_txt("________________", iv_in)
+    msg = pad_message(msg_in)
+    L = len(msg2bin(msg))
+    a = ""
+    for i in (5):
+        a = num2sym(L%32) + a
+        L = L//32
+    data[4] = a
+    mac = ""
+    return [data, iv, msg, mac]
+
+def validate_packet(packet_in):
+    [data, iv, msg, mac] = packet_in
+    f = 1
+    t = data[0][0:1]
+    s = data[0][1:2]
+    ml = len(mac)
+    if t != "В":
+        f = 0
+    elif ((s == "А") or (s == "Б")) and (ml != 16):
+        f = 0
+    elif (s == "_") and (ml != 0):
+        f = 0
+    return f
+
+def transmit(packet_in):
+    [data, iv, msg, mac] = packet_in
+    out = data[0] + data[1] + data[2] + data[3] + data[4]
+    out = msg2bin(out + iv + msg + mac)
+    return out
+
+def recieve(stream_in):
+    p = bin2msg(stream_in)
+    M = len(p)
+    type = p[0:2]
+    sender = p[2:10]
+    reciever = p[10:18]
+    session = p[18:27]
+    length = p[27:32]
+    iv = p[32:48]
+    L = 0
+    for i in range(5):
+        t = length[i:i+1]
+        l = sym2num(t)
+        L = 32*L+l
+    L = L//5
+    message = p[48:48+L]
+    mac = p[48+L:48+L+M-(48+L)]
+    return [[type, sender, reciever, session, length], iv, message, mac]
+
+def textxor(a_in, b_in):
+    out = ""
+    for i in range(4):
+        a = a_in[i*4:i*4+4]
+        b = b_in[i*4:i*4+4]
+        A = dec2bin(block2num(a))
+        B = dec2bin(block2num(b))
+        C = []
+        for j in range(20):
+            C.appeend((A[j] + B[j])%2)
+        c = bin2dec(C)
+        out = out + num2block(c)
+    return out
+
+def frw_CFB(MSG_IN, IV_IN, KEY_IN, mac_in):
+    R = 8
+    R = R - 2
+    m = len(MSG_IN) // 16
+    feedback = IV_IN
+    out = ""
+    cont = "________________"
+    for i in range(m):
+        inp = MSG_IN[i * 16:(i + 1) * 16]
+        cont = textxor(inp, cont)
+        keystream = frw_feistel(feedback, KEY_IN, R)
+        feedback = textxor(inp, keystream)
+        out += feedback
+    keystream = frw_feistel(feedback, KEY_IN, R)
+    mac = textxor(cont, keystream)
+    if mac_in == 1:
+        out += mac
+    elif mac_in == -1:
+        out = mac
+
+    return out
+
+def inv_CFB(MSG_IN, IV_IN, KEY_IN, mac_in):
+    R = 8
+    R = R - 2
+    m = len(MSG_IN) // 16
+    feedback = IV_IN
+    out = ""
+    cont = "________________"
+    for i in range(m-mac_in):
+        inp = MSG_IN[i * 16:(i + 1) * 16]
+        keystream = frw_feistel(feedback, KEY_IN, R)
+        feedback = inp
+        text = textxor(inp, keystream)
+        cont = textxor(cont, text)
+        out += text
+    if mac_in != 0:
+        mac = MSG_IN[(m-1)*16:(m-1)*16+16]
+        keystream = frw_feistel(feedback, KEY_IN, R)
+        text = textxor(mac, keystream)
+        cont = textxor(cont, text)
+        if mac_in == 1:
+            out += cont
+        else:
+            out = cont
+
+    return out
+
+
+def EAX_CFB_frw(PACKET_IN, CMAC_IN, KEY_IN, SEC_IN, onlymac):
+
+    [ASSDATA_IN, IV_IN, MSG_IN, tmp] = PACKET_IN
+    tmp = ASSDATA_IN[0] + ASSDATA_IN[3] + ASSDATA_IN[4]
+    CIV = frw_CFB(SEC_IN + tmp, IV_IN, KEY_IN, -1)
+    if onlymac == 1:
+        tmp = frw_CFB(MSG_IN, CIV, KEY_IN, -1)
+        MAC = textxor(tmp+CIV, CMAC_IN)
+        MSG = MSG_IN
+    else:
+        tmp = frw_CFB(MSG_IN, CIV, KEY_IN, 1)
+        m = tmp[len(MSG_IN):len(MSG_IN) + 16]
+        MAC = textxor(textxor(m, CIV), CMAC_IN)
+        MSG = tmp[0:len(MSG_IN)]
+    return [ASSDATA_IN, IV_IN, MSG, MAC]
+
+def EAX_CFB_inv(PACKET_IN, CMAC_IN, KEY_IN, SEC_IN, onlymac):
+
+    [AD_IN, IV_IN, MSG_IN, MAC_IN] = PACKET_IN
+    tmp = AD_IN[0] + AD_IN[3] + AD_IN[4]
+    data = AD_IN[0] + AD_IN[1] + AD_IN[2] + AD_IN[3] + "____"
+    CMAC = frw_CFB(data, SEC_IN, KEY_IN, -1)
+    CIV = frw_CFB(SEC_IN + tmp, IV_IN, KEY_IN, -1)
+    if onlymac == 1:
+        tmp = frw_CFB(MSG_IN, CIV, KEY_IN, -1)
+        MAC = textxor(MAC_IN, textxor(textxor(tmp, CIV), CMAC))
+        MSG = MSG_IN
+    else:
+        cont = textxor(textxor(MAC_IN, CIV), CMAC)
+        tmp = inv_CFB(MSG_IN+cont, CIV, KEY_IN, 1)
+        m = tmp[len(MSG_IN):len(MSG_IN) + 16]
+        MAC = m
+        MSG = tmp[0:len(MSG_IN)]
+    return [AD_IN, IV_IN, MSG, MAC]
+
+def EAX_CFB(ASS_DATA, MSG_ARRAY, KEY_IN, nonce, type):
+    [mtype, sender, reciever, transmission] = ASS_DATA
+    t1 = reciever + sender
+    t2 = mtype + transmission + "_____"
+    cad = add_txt(t1, t2)
+    IV0 = add_txt(add_txt(t1,t2), nonce)[0:12]
+    if reciever < sender:
+        t3 = t1
+    else:
+        t3 = sender + reciever
+    msg_counter = -1
+    keyset = produce_round_keys(KEY_IN)
+    secret = frw_CFB(t3+t2, KEY_IN, keyset, -1)
+    data = mtype + sender + reciever + transmission + "____"
+    data_mac = frw_CFB(data, secret, keyset, -1)
+    out = []
+    if type == "send":
+        for i in range(len(MSG_ARRAY)):
+            msg_sec = mtype
+            msg_counter += 1
+            IV = IV0 + num2block(msg_counter)
+            tmp_packet = prepare_packet([msg_sec, sender, reciever, transmission], IV, MSG_ARRAY[i])
+            if msg_sec == "В_":
+                out.append(transmit(tmp_packet))
+            if msg_sec == "ВА":
+                sec_packet = EAX_CFB_frw(tmp_packet, data_mac, keyset, secret, 1)
+                out.append(transmit(sec_packet))
+            if msg_sec == "ВБ":
+                sec_packet = EAX_CFB_frw(tmp_packet, data_mac, keyset, secret, 0)
+                out.append(transmit(sec_packet))
+    if type == "recieve":
+        last = -1
+        for i in range(len(MSG_ARRAY)):
+            tmp_packet = recieve(MSG_ARRAY[i])
+            rdata = tmp_packet[0]
+            current = block2num(tmp_packet[1][12:16])
+            if current > last:
+                if rdata[0] == "ВБ":
+                    rec_packet = EAX_CFB_inv(tmp_packet, keyset, secret, 0)
+                    rec_packet[2] = unpad_message(rec_packet[2])
+                    if rec_packet[3] == "________________":
+                        last = current
+                        rec_packet[3] = "ОК"
+                elif (rdata[0] == "ВА") and (mtype != "ВБ"):
+                    rec_packet = EAX_CFB_inv(tmp_packet, keyset, secret, 1)
+                    rec_packet[2] = unpad_message(rec_packet[2])
+                    if rec_packet[3] == "________________":
+                        last = current
+                        rec_packet[3] = "ОК"
+                elif (rdata[0] == "В_") and (mtype == "В_"):
+                    rec_packet = tmp_packet
+                    rec_packet[2] = unpad_message(rec_packet[2])
+                    if rec_packet[3] == "":
+                        last = current
+                        rec_packet[3] = "N/A"
+                else:
+                    rec_packet = tmp_packet
+                out.append(rec_packet)
+
     return out
